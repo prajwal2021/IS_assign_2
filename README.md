@@ -1,169 +1,92 @@
-# CS5368 Multi-Agent Pacman Project
+# CS5368 Multi-Agent Pacman Project - Implementation Analysis
 
-## Project Overview
-This project implements three different AI agents for the classic Pacman game using adversarial search algorithms. The goal is to create intelligent agents that can make optimal decisions when facing multiple opponents (ghosts) in a dynamic environment.
+## Basic Questions:
 
-## Implemented Agents
+### 1. What is your implementation strategy for Question 1 (MiniMax)? Explain.
 
-### 1. MinimaxAgent
-**What it does:** This agent uses the minimax algorithm to find the best move by considering all possible future game states.
+**My implementation strategy for MiniMax:**
 
-**How it works:**
-- Pacman (agent 0) tries to maximize his score
-- Ghosts (agents 1, 2, 3...) try to minimize Pacman's score
-- The algorithm looks ahead a certain number of moves (depth) and picks the move that leads to the best possible outcome
+I used a recursive approach with two main methods:
+- `getAction()`: Handles the top-level decision making for Pacman
+- `evaluateMove()`: Recursively explores the game tree
 
-**Key features:**
-- Uses `evaluateMove()` method to recursively analyze game states
-- Handles multiple agents with proper turn management
-- Stops searching when reaching maximum depth or game-ending conditions
+**Key strategy elements:**
+- **Multi-agent handling**: I track which agent's turn it is (0 for Pacman, >0 for ghosts)
+- **Depth management**: After all agents move once, the depth increases and it's Pacman's turn again
+- **Turn-based logic**: Pacman (agent 0) maximizes scores, while ghosts (agents 1,2,3...) minimize scores
+- **Base cases**: Stop recursion at terminal states (win/lose) or when reaching maximum depth
 
-### 2. AlphaBetaAgent
-**What it does:** This is an optimized version of minimax that uses alpha-beta pruning to eliminate unnecessary calculations.
+The algorithm evaluates each possible move by looking ahead through all possible ghost responses, then picks the move that leads to the best outcome assuming optimal play from both sides.
 
-**How it works:**
-- Same logic as minimax but with smart pruning
-- Uses `searchWithPruning()` method with alpha and beta bounds
-- Skips evaluating branches that won't affect the final decision
-- Much faster than regular minimax while giving identical results
+### 2. What is your implementation strategy for Question 2 (AlphaBeta Pruning)? Explain.
 
-**Key features:**
-- Implements `lowerBound` and `upperBound` for pruning
-- Maintains same multi-agent logic as minimax
-- Significantly reduces computation time
+**My implementation strategy for AlphaBeta Pruning:**
 
-### 3. ExpectimaxAgent
-**What it does:** This agent treats ghosts as random players rather than perfect minimizers, making it more realistic for actual gameplay.
+I built upon the MiniMax foundation but added pruning optimization:
+- `getAction()`: Same top-level logic as MiniMax
+- `searchWithPruning()`: Recursive function with alpha-beta bounds
 
-**How it works:**
-- Pacman still tries to maximize his score
-- Ghosts are modeled as chance nodes that choose moves randomly
-- Calculates expected value by averaging all possible ghost outcomes
-- More realistic since real ghosts don't always make optimal moves
+**Key strategy elements:**
+- **Pruning bounds**: Uses `lowerBound` (alpha) and `upperBound` (beta) to track best scores
+- **Early termination**: Stops exploring branches when `currentBest > beta` (MAX) or `currentWorst < alpha` (MIN)
+- **Bound updates**: Continuously updates alpha/beta values during search
+- **Same multi-agent logic**: Maintains identical turn management as MiniMax
 
-**Key features:**
-- Uses `calculateExpectedValue()` method for expected value computation
-- Treats ghosts as chance nodes with uniform probability
-- More suitable for games against non-optimal opponents
+The pruning eliminates branches that won't affect the final decision, making it much faster while producing identical results to MiniMax.
 
-## Technical Implementation Details
+### 3. What is your implementation strategy for Question 3 (ExpectiMax)? Explain.
 
-### Multi-Agent Turn Management
-The implementation handles the complex turn sequence:
-1. Pacman moves first (agent 0)
-2. Ghost 1 moves (agent 1)
-3. Ghost 2 moves (agent 2)
-4. ... and so on
-5. After all agents move, depth increases and it's Pacman's turn again
+**My implementation strategy for ExpectiMax:**
 
-### Depth Management
-- Each "depth" represents one complete round of all agents
-- The search stops when reaching the specified depth limit
-- Terminal states (win/lose) also stop the search
+I modified the MiniMax approach to handle probabilistic ghost behavior:
+- `getAction()`: Same top-level decision making
+- `calculateExpectedValue()`: Recursive function treating ghosts as chance nodes
 
-### Evaluation Function
-All agents use the same evaluation function that returns the game score, but this can be customized for better performance.
+**Key strategy elements:**
+- **Chance nodes**: Ghosts are modeled as random players, not optimal minimizers
+- **Expected value calculation**: Computes average outcome across all possible ghost actions
+- **Uniform probability**: Each ghost action has equal probability (1/number_of_actions)
+- **Realistic gameplay**: More suitable for games against non-optimal opponents
 
-## Code Structure
+The algorithm calculates the expected value by averaging all possible ghost outcomes, making it more realistic for actual gameplay scenarios.
 
-### MinimaxAgent
-```python
-def getAction(self, gameState):
-    # Get available moves and find the best one
-    availableMoves = gameState.getLegalActions(0)
-    # Evaluate each move and select the optimal choice
-    
-def evaluateMove(self, state, currentAgent, currentDepth):
-    # Recursive minimax implementation
-    # Handles MAX nodes (Pacman) and MIN nodes (ghosts)
-```
+## Advanced Questions:
 
-### AlphaBetaAgent
-```python
-def getAction(self, gameState):
-    # Similar to minimax but with pruning bounds
-    # Uses lowerBound and upperBound for optimization
-    
-def searchWithPruning(self, state, agent, depth, alpha, beta):
-    # Implements alpha-beta pruning
-    # Prunes branches that won't affect the final decision
-```
+### 1. What changes did you make to move your Question 1 solution to your Question 2 solution?
 
-### ExpectimaxAgent
-```python
-def getAction(self, gameState):
-    # Finds best move considering random ghost behavior
-    
-def calculateExpectedValue(self, state, agent, depth):
-    # Computes expected value for chance nodes
-    # Averages all possible ghost outcomes
-```
+**Changes from MiniMax to AlphaBeta:**
 
-## Common Questions and Answers
+1. **Method renaming**: `evaluateMove()` → `searchWithPruning()`
+2. **Added pruning parameters**: Added `alpha` and `beta` parameters to track bounds
+3. **Pruning conditions**: Added early termination checks:
+   - For MAX nodes: `if currentBest > beta: return currentBest`
+   - For MIN nodes: `if currentWorst < alpha: return currentWorst`
+4. **Bound updates**: Continuously update alpha/beta during search
+5. **Variable renaming**: Used `lowerBound`/`upperBound` instead of `alpha`/`beta` for clarity
 
-### Q: Why do we need different algorithms?
-**A:** Each algorithm is suited for different scenarios:
-- **Minimax**: Best when opponents play optimally
-- **Alpha-Beta**: Same as minimax but much faster
-- **Expectimax**: Better when opponents make random or suboptimal moves
+**Core logic remained identical** - only added optimization without changing the fundamental algorithm.
 
-### Q: How does the multi-agent system work?
-**A:** The game follows a strict turn order:
-1. All agents get to move once per round
-2. Depth increases after each complete round
-3. The algorithm tracks which agent's turn it is and what the next agent should be
+### 2. What changes did you make to move your Question 1 solution to your Question 3 solution?
 
-### Q: What's the difference between minimax and expectimax?
-**A:** 
-- **Minimax**: Assumes opponents will always make the worst possible move for you
-- **Expectimax**: Assumes opponents make random moves, so it calculates the average outcome
+**Changes from MiniMax to ExpectiMax:**
 
-### Q: Why is alpha-beta pruning useful?
-**A:** Alpha-beta pruning eliminates branches that won't change the final decision, making the search much faster without affecting the result.
+1. **Method renaming**: `evaluateMove()` → `calculateExpectedValue()`
+2. **Ghost behavior change**: Ghosts became chance nodes instead of minimizers
+3. **Expected value calculation**: 
+   - **Before**: `minValue = min(minValue, value)` (MIN logic)
+   - **After**: `averageOutcome = sumOfOutcomes / len(availableActions)` (CHANCE logic)
+4. **Variable updates**: 
+   - `worstScore` → `sumOfOutcomes`
+   - `minValue` → `averageOutcome`
+5. **Comment updates**: Changed from "MINIMIZER" to "CHANCE NODE" descriptions
 
-### Q: How do I choose the right depth?
-**A:** Deeper search gives better decisions but takes more time. A depth of 2-4 is usually a good balance between performance and decision quality.
+**Key conceptual change**: Ghosts now represent uncertainty rather than adversarial optimization, making the algorithm more suitable for realistic gameplay scenarios where opponents don't always play optimally.
 
-### Q: What happens if there are no legal moves?
-**A:** The agent returns `Directions.STOP` as a fallback when no moves are available.
+## Implementation Summary
 
-### Q: How does the evaluation function work?
-**A:** The default evaluation function returns the game score, but you can create custom functions that consider factors like:
-- Distance to food
-- Distance to ghosts
-- Number of dots remaining
-- Power pellet status
+The three algorithms demonstrate different approaches to adversarial search:
+- **MiniMax**: Complete but slow, assumes optimal opponents
+- **AlphaBeta**: Same results as MiniMax but much faster through pruning
+- **ExpectiMax**: More realistic for actual gameplay with probabilistic opponents
 
-## Running the Code
-
-To test the agents, use the provided test scripts:
-```bash
-python3 pacman.py -p MinimaxAgent
-python3 pacman.py -p AlphaBetaAgent  
-python3 pacman.py -p ExpectimaxAgent
-```
-
-## Performance Considerations
-
-- **Minimax**: Complete but slow for deep searches
-- **Alpha-Beta**: Much faster, identical results to minimax
-- **Expectimax**: Good balance of speed and realistic gameplay
-
-## Future Improvements
-
-Potential enhancements could include:
-- Custom evaluation functions
-- Transposition tables for caching
-- Iterative deepening
-- Better heuristics for ghost behavior
-
-## Learning Outcomes
-
-This project demonstrates:
-- Adversarial search algorithms
-- Multi-agent systems
-- Game tree search optimization
-- Probability and expected value calculations
-- Recursive algorithm design
-
-The implementation shows how different assumptions about opponent behavior lead to different optimal strategies, which is crucial for AI systems that must operate in uncertain environments.
+Each implementation maintains the same multi-agent turn management system while applying different decision-making strategies based on assumptions about opponent behavior.
