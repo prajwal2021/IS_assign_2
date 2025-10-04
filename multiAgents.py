@@ -78,66 +78,68 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns whether or not the game state is a losing state
         """
         "*** TTU CS 5368 Fall 2025 YOUR CODE HERE ***"
-        # Get all legal actions for Pacman (agent 0)
-        legalActions = gameState.getLegalActions(0)
-        if not legalActions:
+        # Check available moves for Pacman
+        availableMoves = gameState.getLegalActions(0)
+        if len(availableMoves) == 0:
             return Directions.STOP
         
-        # Find the best action by evaluating each legal action
-        bestAction = None
-        bestValue = float('-inf')
+        # Initialize tracking variables for optimal move selection
+        optimalMove = None
+        highestScore = float('-inf')
         
-        for action in legalActions:
-            successor = gameState.generateSuccessor(0, action)
-            value = self.minimax(successor, 1, 0)  # Start with ghost 1, depth 0
-            if value > bestValue:
-                bestValue = value
-                bestAction = action
+        # Evaluate each possible move to find the best one
+        for move in availableMoves:
+            nextState = gameState.generateSuccessor(0, move)
+            moveScore = self.evaluateMove(nextState, 1, 0)  # Begin with first ghost
+            if moveScore > highestScore:
+                highestScore = moveScore
+                optimalMove = move
         
-        return bestAction
+        return optimalMove
     
-    def minimax(self, gameState, agentIndex, depth):
+    def evaluateMove(self, state, currentAgent, currentDepth):
         """
-        Recursive minimax helper function.
-        agentIndex: 0 for Pacman (MAX), >0 for ghosts (MIN)
-        depth: current depth in the search tree
+        Recursive evaluation function implementing minimax algorithm.
+        currentAgent: 0 represents Pacman (seeks maximum), >0 represents ghosts (seek minimum)
+        currentDepth: tracks how deep we are in the search tree
         """
-        # Base cases
-        if gameState.isWin() or gameState.isLose():
-            return self.evaluationFunction(gameState)
+        # Handle terminal conditions first
+        if state.isWin() or state.isLose():
+            return self.evaluationFunction(state)
         
-        if depth >= self.depth:
-            return self.evaluationFunction(gameState)
+        # Stop searching if we've reached maximum depth
+        if currentDepth >= self.depth:
+            return self.evaluationFunction(state)
         
-        # Get legal actions for current agent
-        legalActions = gameState.getLegalActions(agentIndex)
-        if not legalActions:
-            return self.evaluationFunction(gameState)
+        # Get possible actions for the current agent
+        possibleActions = state.getLegalActions(currentAgent)
+        if len(possibleActions) == 0:
+            return self.evaluationFunction(state)
         
-        # Determine next agent and depth
-        numAgents = gameState.getNumAgents()
-        nextAgent = agentIndex + 1
-        nextDepth = depth
+        # Calculate which agent moves next and whether depth should increase
+        totalAgents = state.getNumAgents()
+        nextAgent = currentAgent + 1
+        newDepth = currentDepth
         
-        # If current agent is the last ghost, next agent is Pacman and depth increases
-        if nextAgent >= numAgents:
+        # When we've gone through all ghosts, it's Pacman's turn again and depth increases
+        if nextAgent >= totalAgents:
             nextAgent = 0
-            nextDepth = depth + 1
+            newDepth = currentDepth + 1
         
-        if agentIndex == 0:  # Pacman's turn (MAX player)
-            maxValue = float('-inf')
-            for action in legalActions:
-                successor = gameState.generateSuccessor(agentIndex, action)
-                value = self.minimax(successor, nextAgent, nextDepth)
-                maxValue = max(maxValue, value)
-            return maxValue
-        else:  # Ghost's turn (MIN player)
-            minValue = float('inf')
-            for action in legalActions:
-                successor = gameState.generateSuccessor(agentIndex, action)
-                value = self.minimax(successor, nextAgent, nextDepth)
-                minValue = min(minValue, value)
-            return minValue
+        if currentAgent == 0:  # Pacman's move (MAXIMIZER)
+            bestScore = float('-inf')
+            for action in possibleActions:
+                newState = state.generateSuccessor(currentAgent, action)
+                score = self.evaluateMove(newState, nextAgent, newDepth)
+                bestScore = max(bestScore, score)
+            return bestScore
+        else:  # Ghost's move (MINIMIZER)
+            worstScore = float('inf')
+            for action in possibleActions:
+                newState = state.generateSuccessor(currentAgent, action)
+                score = self.evaluateMove(newState, nextAgent, newDepth)
+                worstScore = min(worstScore, score)
+            return worstScore
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
@@ -149,77 +151,79 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** TTU CS 5368 Fall 2025 YOUR CODE HERE ***"
-        # Get all legal actions for Pacman (agent 0)
-        legalActions = gameState.getLegalActions(0)
-        if not legalActions:
+        # Retrieve possible moves for Pacman
+        moveOptions = gameState.getLegalActions(0)
+        if len(moveOptions) == 0:
             return Directions.STOP
         
-        # Find the best action by evaluating each legal action with alpha-beta pruning
-        bestAction = None
-        bestValue = float('-inf')
-        alpha = float('-inf')
-        beta = float('inf')
+        # Set up variables for finding optimal move with pruning
+        chosenMove = None
+        topScore = float('-inf')
+        lowerBound = float('-inf')
+        upperBound = float('inf')
         
-        for action in legalActions:
-            successor = gameState.generateSuccessor(0, action)
-            value = self.alphaBeta(successor, 1, 0, alpha, beta)  # Start with ghost 1, depth 0
-            if value > bestValue:
-                bestValue = value
-                bestAction = action
-            alpha = max(alpha, value)
+        # Test each move and apply alpha-beta optimization
+        for move in moveOptions:
+            resultingState = gameState.generateSuccessor(0, move)
+            moveValue = self.searchWithPruning(resultingState, 1, 0, lowerBound, upperBound)
+            if moveValue > topScore:
+                topScore = moveValue
+                chosenMove = move
+            lowerBound = max(lowerBound, moveValue)
         
-        return bestAction
+        return chosenMove
     
-    def alphaBeta(self, gameState, agentIndex, depth, alpha, beta):
+    def searchWithPruning(self, state, agent, depth, alpha, beta):
         """
-        Recursive alpha-beta pruning helper function.
-        agentIndex: 0 for Pacman (MAX), >0 for ghosts (MIN)
-        depth: current depth in the search tree
-        alpha: best value for MAX player so far
-        beta: best value for MIN player so far
+        Implements minimax with alpha-beta pruning for efficiency.
+        agent: 0 for Pacman (maximizer), >0 for ghosts (minimizer)
+        depth: current search depth
+        alpha: best score for maximizer so far
+        beta: best score for minimizer so far
         """
-        # Base cases
-        if gameState.isWin() or gameState.isLose():
-            return self.evaluationFunction(gameState)
+        # Check for game-ending conditions
+        if state.isWin() or state.isLose():
+            return self.evaluationFunction(state)
         
+        # Stop if we've reached the search limit
         if depth >= self.depth:
-            return self.evaluationFunction(gameState)
+            return self.evaluationFunction(state)
         
-        # Get legal actions for current agent
-        legalActions = gameState.getLegalActions(agentIndex)
-        if not legalActions:
-            return self.evaluationFunction(gameState)
+        # Get valid moves for current agent
+        validMoves = state.getLegalActions(agent)
+        if len(validMoves) == 0:
+            return self.evaluationFunction(state)
         
-        # Determine next agent and depth
-        numAgents = gameState.getNumAgents()
-        nextAgent = agentIndex + 1
-        nextDepth = depth
+        # Determine next player and depth progression
+        agentCount = state.getNumAgents()
+        followingAgent = agent + 1
+        updatedDepth = depth
         
-        # If current agent is the last ghost, next agent is Pacman and depth increases
-        if nextAgent >= numAgents:
-            nextAgent = 0
-            nextDepth = depth + 1
+        # After all ghosts move, it's Pacman's turn and we go deeper
+        if followingAgent >= agentCount:
+            followingAgent = 0
+            updatedDepth = depth + 1
         
-        if agentIndex == 0:  # Pacman's turn (MAX player)
-            v = float('-inf')
-            for action in legalActions:
-                successor = gameState.generateSuccessor(agentIndex, action)
-                value = self.alphaBeta(successor, nextAgent, nextDepth, alpha, beta)
-                v = max(v, value)
-                if v > beta:  # Alpha-beta pruning
-                    return v
-                alpha = max(alpha, v)
-            return v
-        else:  # Ghost's turn (MIN player)
-            v = float('inf')
-            for action in legalActions:
-                successor = gameState.generateSuccessor(agentIndex, action)
-                value = self.alphaBeta(successor, nextAgent, nextDepth, alpha, beta)
-                v = min(v, value)
-                if v < alpha:  # Alpha-beta pruning
-                    return v
-                beta = min(beta, v)
-            return v
+        if agent == 0:  # Pacman's turn (MAXIMIZER)
+            currentBest = float('-inf')
+            for move in validMoves:
+                newState = state.generateSuccessor(agent, move)
+                moveScore = self.searchWithPruning(newState, followingAgent, updatedDepth, alpha, beta)
+                currentBest = max(currentBest, moveScore)
+                if currentBest > beta:  # Prune unnecessary branches
+                    return currentBest
+                alpha = max(alpha, currentBest)
+            return currentBest
+        else:  # Ghost's turn (MINIMIZER)
+            currentWorst = float('inf')
+            for move in validMoves:
+                newState = state.generateSuccessor(agent, move)
+                moveScore = self.searchWithPruning(newState, followingAgent, updatedDepth, alpha, beta)
+                currentWorst = min(currentWorst, moveScore)
+                if currentWorst < alpha:  # Prune unnecessary branches
+                    return currentWorst
+                beta = min(beta, currentWorst)
+            return currentWorst
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -234,69 +238,71 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         "*** TTU CS 5368 Fall 2025 YOUR CODE HERE ***"
-        # Get all legal actions for Pacman (agent 0)
-        legalActions = gameState.getLegalActions(0)
-        if not legalActions:
+        # Check what moves Pacman can make
+        pacmanMoves = gameState.getLegalActions(0)
+        if len(pacmanMoves) == 0:
             return Directions.STOP
         
-        # Find the best action by evaluating each legal action
-        bestAction = None
-        bestValue = float('-inf')
+        # Initialize variables to track the best move
+        selectedMove = None
+        maximumScore = float('-inf')
         
-        for action in legalActions:
-            successor = gameState.generateSuccessor(0, action)
-            value = self.expectimax(successor, 1, 0)  # Start with ghost 1, depth 0
-            if value > bestValue:
-                bestValue = value
-                bestAction = action
+        # Analyze each possible move to determine the best choice
+        for move in pacmanMoves:
+            futureState = gameState.generateSuccessor(0, move)
+            moveScore = self.calculateExpectedValue(futureState, 1, 0)  # Start with first ghost
+            if moveScore > maximumScore:
+                maximumScore = moveScore
+                selectedMove = move
         
-        return bestAction
+        return selectedMove
     
-    def expectimax(self, gameState, agentIndex, depth):
+    def calculateExpectedValue(self, state, agent, depth):
         """
-        Recursive expectimax helper function.
-        agentIndex: 0 for Pacman (MAX), >0 for ghosts (CHANCE)
-        depth: current depth in the search tree
+        Recursive function implementing expectimax algorithm.
+        agent: 0 for Pacman (maximizer), >0 for ghosts (chance nodes)
+        depth: current level in the search tree
         """
-        # Base cases
-        if gameState.isWin() or gameState.isLose():
-            return self.evaluationFunction(gameState)
+        # Handle end-game scenarios
+        if state.isWin() or state.isLose():
+            return self.evaluationFunction(state)
         
+        # Stop searching when we reach the depth limit
         if depth >= self.depth:
-            return self.evaluationFunction(gameState)
+            return self.evaluationFunction(state)
         
-        # Get legal actions for current agent
-        legalActions = gameState.getLegalActions(agentIndex)
-        if not legalActions:
-            return self.evaluationFunction(gameState)
+        # Get available actions for the current agent
+        availableActions = state.getLegalActions(agent)
+        if len(availableActions) == 0:
+            return self.evaluationFunction(state)
         
-        # Determine next agent and depth
-        numAgents = gameState.getNumAgents()
-        nextAgent = agentIndex + 1
-        nextDepth = depth
+        # Figure out which agent moves next and depth progression
+        totalAgents = state.getNumAgents()
+        nextAgent = agent + 1
+        newDepth = depth
         
-        # If current agent is the last ghost, next agent is Pacman and depth increases
-        if nextAgent >= numAgents:
+        # When all ghosts have moved, it's Pacman's turn and depth increases
+        if nextAgent >= totalAgents:
             nextAgent = 0
-            nextDepth = depth + 1
+            newDepth = depth + 1
         
-        if agentIndex == 0:  # Pacman's turn (MAX player)
-            maxValue = float('-inf')
-            for action in legalActions:
-                successor = gameState.generateSuccessor(agentIndex, action)
-                value = self.expectimax(successor, nextAgent, nextDepth)
-                maxValue = max(maxValue, value)
-            return maxValue
-        else:  # Ghost's turn (CHANCE player)
-            # Calculate expected value: sum of all successor values / number of actions
-            totalValue = 0
-            for action in legalActions:
-                successor = gameState.generateSuccessor(agentIndex, action)
-                value = self.expectimax(successor, nextAgent, nextDepth)
-                totalValue += value
+        if agent == 0:  # Pacman's turn (MAXIMIZER)
+            bestOutcome = float('-inf')
+            for action in availableActions:
+                nextState = state.generateSuccessor(agent, action)
+                outcome = self.calculateExpectedValue(nextState, nextAgent, newDepth)
+                bestOutcome = max(bestOutcome, outcome)
+            return bestOutcome
+        else:  # Ghost's turn (CHANCE NODE)
+            # Compute the average value across all possible ghost actions
+            sumOfOutcomes = 0
+            for action in availableActions:
+                nextState = state.generateSuccessor(agent, action)
+                outcome = self.calculateExpectedValue(nextState, nextAgent, newDepth)
+                sumOfOutcomes += outcome
             
-            # All actions are equally likely (uniform probability)
-            expectedValue = totalValue / len(legalActions)
-            return expectedValue
+            # Since ghosts choose randomly, we take the average
+            averageOutcome = sumOfOutcomes / len(availableActions)
+            return averageOutcome
 
 
